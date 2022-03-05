@@ -1,17 +1,14 @@
 <h3>{{ _('All Done!') }}</h3>
 
 <p>{% trans %}
-    Your OctoPrint installation is now all set up and ready to go.
+    Your installation is now all set up and ready to go.
 {% endtrans %}</p>
 
 <h4>{{ _('For your printer\'s safety') }}</h4>
 
 <i class="fas fa-exclamation-triangle fa-4x fa-pull-left text-error"></i>
 <p>{% trans %}
-    Even with OctoPrint attached you should <strong class="text-error">never leave
-    your printer running completely unattended</strong>. The electronics in our consumer printers can and
-    sometimes sadly do catch fire, so stay or have someone else stay close enough to physically intervene
-    in case of such catastrophic failure.
+    your printer running completely unattended</strong>. stay or have someone else stay close enough to physically intervene
 {% endtrans %}</p>
 <p>{% trans url='https://octoprint.org/blog/2018/09/03/safe-remote-access/' %}
     You also should <strong class="text-error">never make your OctoPrint instance available for everyone on the
