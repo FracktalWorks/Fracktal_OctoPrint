@@ -440,6 +440,9 @@ default_settings = {
     "plugins": {"_disabled": [], "_forcedCompatible": [], "_sortingOrder": {}},
     "scripts": {
         "gcode": {
+            "afterPrintDone": ";goto home position\nG28 X0 Y0 Z0",
+            "afterPrintPaused": "{% if pause_position.x is not none %}\n; relative XYZE\nG91\nM83\n\n; retract filament, move Z slightly upwards\nG1 Z+5 E-5 F4500\n\n; absolute XYZE\nM82\nG90\n\n; move to a safe rest position, adjust as necessary\nG1 X0 Y0\n{% endif %}",
+            "beforePrintResumed": "{% if pause_position.x is not none %}\n; relative extruder\nM83\n; reset active tool\nT{{ pause_position.t}}\n; prime nozzle\nG1 E-5 F4500\nG1 E5 F4500\nG1 E5 F4500\n\n; absolute E\nM82\n\n; absolute XYZ\nG90\n\n; reset E\nG92 E{{ pause_position.e }}\n\n\n; move back to pause position XYZ\nG1 X{{ pause_position.x }} Y{{ pause_position.y }} Z{{ pause_position.z }} F4500\n\n; reset to feed rate before pause if available\n{% if pause_position.f is not none %}G1 F{{ pause_position.f }}{% endif %}\n{% endif %}",
             "afterPrintCancelled": "; disable motors\nM84\n\n;disable all heaters\n{% snippet 'disable_hotends' %}\n{% snippet 'disable_bed' %}\n;disable fan\nM106 S0",
             "snippets": {
                 "disable_hotends": "{% if printer_profile.extruder.sharedNozzle %}M104 T0 S0\n{% else %}{% for tool in range(printer_profile.extruder.count) %}M104 T{{ tool }} S0\n{% endfor %}{% endif %}",
