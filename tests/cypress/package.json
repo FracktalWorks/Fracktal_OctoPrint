@@ -8,12 +8,12 @@
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/FracktalWorks/Fracktal_OctoPrint\n.git"
+        "url": "git+https://github.com/FracktalWorks/Fracktal_OctoPrint.git"
     },
     "author": "Gina Häußge",
     "license": "AGPL-3.0",
     "bugs": {
-        "url": "https://github.com/FracktalWorks/Fracktal_OctoPrint\n/issues"
+        "url": "https://github.com/FracktalWorks/Fracktal_OctoPrint/issues"
     },
     "homepage": "https://octoprint.org",
     "dependencies": {
