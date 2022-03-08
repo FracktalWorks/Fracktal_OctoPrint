@@ -19,7 +19,7 @@ below.
 
   * Checkout the OctoPrint sources from their Git repository:
 
-      * ``git clone https://github.com/OctoPrint/OctoPrint.git``
+      * ``git clone https://github.com/FracktalWorks/OctoPrint.git``
 
   * Enter the checked out source folder: ``cd OctoPrint``
   * Create a virtual environment in the checked out source folder to use for
@@ -108,7 +108,7 @@ Then:
 .. code-block:: none
 
    cd ~/devel
-   git clone https://github.com/OctoPrint/OctoPrint.git
+   git clone https://github.com/FracktalWorks/OctoPrint.git
    cd OctoPrint
    virtualenv --python=python3 venv3
    source ./venv3/bin/activate
@@ -178,7 +178,7 @@ Open the Git Bash you just installed and in that:
 
    pip install virtualenv
    cd /c/Devel
-   git clone https://github.com/OctoPrint/OctoPrint.git
+   git clone https://github.com/FracktalWorks/OctoPrint.git
    cd OctoPrint
    virtualenv --python=C:/Python3/python.exe venv3
    source ./venv3/Scripts/activate
@@ -284,7 +284,7 @@ You'll need a user account with administrator privileges.
     .. code-block:: none
 
        cd ~/devel
-       git clone https://github.com/OctoPrint/OctoPrint.git
+       git clone https://github.com/FracktalWorks/OctoPrint.git
        cd OctoPrint
        virtualenv venv
        source venv/bin/activate
@@ -466,7 +466,7 @@ Visual Studio Code (vscode)
                }
            ]
          }
-  
+
   In the terminal install the python extension by running this command:
 
     .. code-block:: bash
@@ -486,7 +486,7 @@ Visual Studio Code (vscode)
   * Your terminal inside vscode uses the virtual python environment
 
   * Saving a file will run an auto formatter and import sort
-  
+
   * ``Ctrl+Shift+B`` can be used to run the ``build docs`` task to rebuild the documentation
 
-  
+

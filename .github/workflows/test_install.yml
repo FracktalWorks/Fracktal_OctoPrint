@@ -63,7 +63,7 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: 👷 Build and install latest release
         run: |
-          pip install https://github.com/OctoPrint/OctoPrint/archive/${{ steps.latest.outputs.release }}.zip
+          pip install https://github.com/FracktalWorks/OctoPrint/archive/${{ steps.latest.outputs.release }}.zip
       - name: 📧 Discord success notification
         env:
           DISCORD_WEBHOOK: ${{ secrets.discord_webhook }}

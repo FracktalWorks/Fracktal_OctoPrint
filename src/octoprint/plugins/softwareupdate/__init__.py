@@ -696,9 +696,9 @@ class SoftwareUpdatePlugin(
                 "octoprint": {
                     "type": "github_release",
                     "user": "FracktalWorks",
-                    "repo": "OctoPrint",
+                    "repo": "Fracktal_OctoPrint",
                     "method": "pip",
-                    "pip": "https://github.com/FracktalWorks/OctoPrint/archive/{target_version}.zip",
+                    "pip": "https://github.com/FracktalWorks/Fracktal_OctoPrint/archive/{target_version}.zip",
                     "update_script": default_update_script,
                     "restart": "octoprint",
                     "stable_branch": {
