@@ -351,6 +351,7 @@ class TemperatureRecord(object):
         self._tools = {}
         self._bed = (None, None)
         self._chamber = (None, None)
+        self._filament = (None, None)
         self._custom = {}
 
     def copy_from(self, other):
@@ -368,6 +369,10 @@ class TemperatureRecord(object):
     def set_chamber(self, actual=None, target=None):
         current = self._chamber
         self._chamber = self._to_new_tuple(current, actual, target)
+
+    def set_filament(self, actual=None, target=None):
+        current = self._filament
+        self._filament = self._to_new_tuple(current, actual, target)
 
     def set_custom(self, identifier, actual=None, target=None):
         if self.RESERVED_IDENTIFIER_REGEX.match(identifier):
@@ -388,6 +393,10 @@ class TemperatureRecord(object):
         return self._chamber
 
     @property
+    def filament(self):
+        return self._filament
+
+    @property
     def custom(self):
         return dict(self._custom)
 
@@ -403,6 +412,9 @@ class TemperatureRecord(object):
 
         chamber = self.chamber
         result["c"] = {"actual": chamber[0], "target": chamber[1]}
+
+        filament = self.filament
+        result["f"] = {"actual": filament[0], "target": filament[1]}
 
         custom = self.custom
         for identifier, data in custom.items():
@@ -475,6 +487,7 @@ class MachineCom(object):
     CAPABILITY_BUSY_PROTOCOL = "BUSY_PROTOCOL"
     CAPABILITY_EMERGENCY_PARSER = "EMERGENCY_PARSER"
     CAPABILITY_CHAMBER_TEMP = "CHAMBER_TEMPERATURE"
+    CAPABILITY_FILAMENT_TEMP = "FILAMENT_TEMPERATURE"
     CAPABILITY_EXTENDED_M20 = "EXTENDED_M20"
 
     CAPABILITY_SUPPORT_ENABLED = "enabled"
@@ -597,6 +610,9 @@ class MachineCom(object):
             ),
             self.CAPABILITY_CHAMBER_TEMP: settings().getBoolean(
                 ["serial", "capabilities", "chamber_temp"]
+            ),
+            self.CAPABILITY_FILAMENT_TEMP: settings().getBoolean(
+                ["serial", "capabilities", "filament_temp"]
             ),
             self.CAPABILITY_EXTENDED_M20: settings().getBoolean(
                 ["serial", "capabilities", "extended_m20"]
@@ -2153,6 +2169,15 @@ class MachineCom(object):
             del parsedTemps["C"]
             self.last_temperature.set_chamber(actual=actual, target=target)
 
+        # filament temperature
+        if "F" in parsedTemps and (
+            self._capability_supported(self.CAPABILITY_FILAMENT_TEMP)
+            or self._printerProfileManager.get_current_or_default()["heatedFilament"]
+        ):
+            actual, target = parsedTemps["F"]
+            del parsedTemps["F"]
+            self.last_temperature.set_filament(actual=actual, target=target)
+
         # all other injected temperatures
         for key in parsedTemps.keys():
             actual, target = parsedTemps[key]
@@ -2602,6 +2627,7 @@ class MachineCom(object):
                         self.last_temperature.tools,
                         self.last_temperature.bed,
                         self.last_temperature.chamber,
+                        self.last_temperature.filament,
                         self.last_temperature.custom,
                     )
 
@@ -2620,6 +2646,7 @@ class MachineCom(object):
                                 self.last_temperature.tools,
                                 self.last_temperature.bed,
                                 self.last_temperature.chamber,
+                                self.last_temperature.filament,
                                 self.last_temperature.custom,
                             )
                         except ValueError:
@@ -2632,6 +2659,7 @@ class MachineCom(object):
                                 self.last_temperature.tools,
                                 self.last_temperature.bed,
                                 self.last_temperature.chamber,
+                                self.last_temperature.filament,
                                 self.last_temperature.custom,
                             )
                         except ValueError:
@@ -5059,6 +5087,27 @@ class MachineCom(object):
 
     _gcode_M191_queuing = _gcode_M141_queuing
 
+    def _gcode_M142_queuing(
+        self, cmd, cmd_type=None, gcode=None, subcode=None, *args, **kwargs
+    ):
+        if not self._printerProfileManager.get_current_or_default()["heatedFilament"]:
+            message = (
+                'Not sending "{}", printer profile has no heated filament heater. Either '
+                "configure a heated filament heater or remove filament commands from your "
+                "GCODE.".format(cmd)
+            )
+            self._log("Warn: " + message)
+            self._logger.warning(message)
+            eventManager().fire(
+                Events.COMMAND_SUPPRESSED,
+                {"command": cmd, "message": message, "severity": "warn"},
+            )
+            return (
+                None,
+            )  # Don't send filament commands if we don't have a heated filament heater
+
+    _gcode_M192_queuing = _gcode_M142_queuing
+
     def _gcode_M104_sent(
         self,
         cmd,
@@ -5092,6 +5141,7 @@ class MachineCom(object):
                     self.last_temperature.tools,
                     self.last_temperature.bed,
                     self.last_temperature.chamber,
+                    self.last_temperature.filament,
                     self.last_temperature.custom,
                 )
             except ValueError:
@@ -5120,6 +5170,7 @@ class MachineCom(object):
                     self.last_temperature.tools,
                     self.last_temperature.bed,
                     self.last_temperature.chamber,
+                    self.last_temperature.filament,
                     self.last_temperature.custom,
                 )
             except ValueError:
@@ -5176,6 +5227,43 @@ class MachineCom(object):
         self._long_running_command = True
         self._heating = True
         self._gcode_M141_sent(cmd, cmd_type, wait=True, support_r=True)
+
+    def _gcode_M142_sent(
+        self,
+        cmd,
+        cmd_type=None,
+        gcode=None,
+        subcode=None,
+        wait=False,
+        support_r=False,
+        *args,
+        **kwargs
+    ):
+        match = regexes_parameters["floatS"].search(cmd)
+        if not match and support_r:
+            match = regexes_parameters["floatR"].search(cmd)
+
+        if match:
+            try:
+                target = float(match.group("value"))
+                self.last_temperature.set_filament(target=target)
+                self._callback.on_comm_temperature_update(
+                    self.last_temperature.tools,
+                    self.last_temperature.bed,
+                    self.last_temperature.chamber,
+                    self.last_temperature.filament,
+                    self.last_temperature.custom,
+                )
+            except ValueError:
+                pass
+
+    def _gcode_M192_sent(
+        self, cmd, cmd_type=None, gcode=None, subcode=None, *args, **kwargs
+    ):
+        self._heatupWaitStartTime = monotonic_time()
+        self._long_running_command = True
+        self._heating = True
+        self._gcode_M142_sent(cmd, cmd_type, wait=True, support_r=True)
 
     def _gcode_M116_sent(
         self, cmd, cmd_type=None, gcode=None, subcode=None, *args, **kwargs
@@ -5429,7 +5517,7 @@ class MachineComPrintCallback(object):
     def on_comm_log(self, message):
         pass
 
-    def on_comm_temperature_update(self, temp, bedTemp, chamberTemp, customTemp):
+    def on_comm_temperature_update(self, temp, bedTemp, chamberTemp, filamentTemp, customTemp):
         pass
 
     def on_comm_position_update(self, position, reason=None):

@@ -86,6 +86,7 @@ $(function () {
         });
         self.hasBed = ko.observable(true);
         self.hasChamber = ko.observable(false);
+        self.hasFilament = ko.observable(false);
 
         self.visible = ko.pureComputed(function () {
             return self.hasTools() || self.hasBed();
@@ -98,6 +99,10 @@ $(function () {
         self.chamberTemp = self._createToolEntry();
         self.chamberTemp["name"](gettext("Chamber"));
         self.chamberTemp["key"]("chamber");
+
+        self.filamentTemp = self._createToolEntry();
+        self.filamentTemp["name"](gettext("Filament"));
+        self.filamentTemp["key"]("filament");
 
         self.isErrorOrClosed = ko.observable(undefined);
         self.isOperational = ko.observable(undefined);
@@ -174,6 +179,14 @@ $(function () {
                 self.hasChamber(false);
             }
 
+            // heated filament
+            if (currentProfileData && currentProfileData.heatedFilament()) {
+                self.hasFilament(true);
+                heaterOptions["filament"] = {name: gettext("Filament"), color: "purple"};
+            } else {
+                self.hasFilament(false);
+            }
+
             // write back
             self.heaterOptions(heaterOptions);
             self.tools(tools);
@@ -198,6 +211,9 @@ $(function () {
             self.settingsViewModel.printerProfiles
                 .currentProfileData()
                 .heatedChamber.subscribe(self._printerProfileUpdated);
+            self.settingsViewModel.printerProfiles
+                .currentProfileData()
+                .heatedFilament.subscribe(self._printerProfileUpdated);
         });
 
         self.temperatures = [];
@@ -280,6 +296,14 @@ $(function () {
                 self.chamberTemp["target"](0);
             }
 
+            if (lastData.hasOwnProperty("filament")) {
+                self.filamentTemp["actual"](lastData.filament.actual);
+                self.filamentTemp["target"](lastData.filament.target);
+            } else {
+                self.filamentTemp["actual"](0);
+                self.filamentTemp["target"](0);
+            }
+
             if (!CONFIG_TEMPERATURE_GRAPH) return;
 
             self.temperatures = self._processTemperatureData(
@@ -315,6 +339,12 @@ $(function () {
                 self.chamberTemp["offset"](data["chamber"]);
             } else {
                 self.chamberTemp["offset"](0);
+            }
+
+            if (data.hasOwnProperty("filament")) {
+                self.filamentTemp["offset"](data["filament"]);
+            } else {
+                self.filamentTemp["offset"](0);
             }
         };
 
@@ -381,15 +411,21 @@ $(function () {
                 if (self.hasChamber()) {
                     value += "/" + gettext("Chamber") + ": %(chamber)s";
                 }
+                if (self.hasFilament()) {
+                    value += "/" + gettext("Filament") + ": %(filament)s";
+                }
                 value = _.sprintf(value, {
                     extruder: format(profile.extruder),
                     bed: format(profile.bed),
-                    chamber: format(profile.chamber)
+                    chamber: format(profile.chamber),
+                    filament: format(profile.filament)
                 });
             } else if (heater.key() === "bed") {
                 value = format(profile.bed);
             } else if (heater.key() === "chamber") {
                 value = format(profile.chamber);
+            } else if (heater.key() === "filament") {
+                value = format(profile.filament);
             } else {
                 value = format(profile.extruder);
             }
@@ -714,6 +750,10 @@ $(function () {
                 self.setTargetFromProfile(self.chamberTemp, temperatureProfile);
             }
 
+            if (self.hasFilament()) {
+                self.setTargetFromProfile(self.filamentTemp, temperatureProfile);
+            }
+
             self.tools().forEach(function (element) {
                 self.setTargetFromProfile(element, temperatureProfile);
             });
@@ -729,6 +769,8 @@ $(function () {
                 target = profile.bed;
             } else if (item.key() === "chamber") {
                 target = profile.chamber;
+            } else if (item.key() === "filament") {
+                target = profile.filament;
             } else {
                 target = profile.extruder;
             }
@@ -745,6 +787,10 @@ $(function () {
 
             if (self.hasChamber()) {
                 self.setTargetToZero(self.chamberTemp);
+            }
+
+            if (self.hasFilament()) {
+                self.setTargetToZero(self.filamentTemp);
             }
 
             self.tools().forEach(function (element) {
@@ -777,6 +823,8 @@ $(function () {
                 return self._setBedTemperature(value).done(onSuccess);
             } else if (item.key() === "chamber") {
                 return self._setChamberTemperature(value).done(onSuccess);
+            } else if (item.key() === "filament") {
+                return self._setFilamentTemperature(value).done(onSuccess);
             } else {
                 return self._setToolTemperature(item.key(), value).done(onSuccess);
             }
@@ -867,6 +915,8 @@ $(function () {
                 return self._setBedOffset(value).done(onSuccess);
             } else if (item.key() === "chamber") {
                 return self._setChamberOffset(value).done(onSuccess);
+            } else if (item.key() === "filament") {
+                return self._setFilamentOffset(value).done(onSuccess);
             } else {
                 return self._setToolOffset(item.key(), value).done(onSuccess);
             }
@@ -898,6 +948,14 @@ $(function () {
 
         self._setChamberOffset = function (offset) {
             return OctoPrint.printer.setChamberTemperatureOffset(parseInt(offset));
+        };
+
+        self._setFilamentTemperature = function (temperature) {
+            return OctoPrint.printer.setFilamentTargetTemperature(parseInt(temperature));
+        };
+
+        self._setFilamentOffset = function (offset) {
+            return OctoPrint.printer.setFilamentTemperatureOffset(parseInt(offset));
         };
 
         self._replaceLegendLabel = function (index, series, value, emph) {

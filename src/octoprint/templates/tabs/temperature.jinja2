@@ -33,6 +33,7 @@
         <!-- /ko -->
         <tr data-bind="template: { name: 'temprow-template', data: bedTemp }, visible: hasBed"></tr>
         <tr data-bind="template: { name: 'temprow-template', data: chamberTemp }, visible: hasChamber"></tr>
+        <tr data-bind="template: { name: 'temprow-template', data: filamentTemp }, visible: hasFilament"></tr>
     </table>
 
     <script type="text/html" id="temprow-template">
