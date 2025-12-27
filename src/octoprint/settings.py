@@ -181,8 +181,6 @@ default_settings = {
             "autoreport_pos": True,
             "busy_protocol": True,
             "emergency_parser": True,
-            "chamber_temp": True,
-            "filament_temp": True,
             "extended_m20": True,
         },
         "resendRatioThreshold": 10,
@@ -311,8 +309,8 @@ default_settings = {
     },
     "temperature": {
         "profiles": [
-            {"name": "ABS", "extruder": 210, "bed": 100},
-            {"name": "PLA", "extruder": 180, "bed": 60},
+            {"name": "ABS", "extruder": 210, "bed": 100, "chamber": 0, "filament": 0},
+            {"name": "PLA", "extruder": 180, "bed": 60, "chamber": 0, "filament": 0},
         ],
         "cutoff": 30,
         "sendAutomatically": False,
@@ -1605,28 +1603,18 @@ class Settings(object):
         """
         if "temperature" in config and "profiles" in config["temperature"]:
             profiles = config["temperature"]["profiles"]
-            needs_migration = False
-            for profile in profiles:
-                if not isinstance(profile.get("extruder", 0), int) or not isinstance(profile.get("bed", 0), int):
-                    needs_migration = True
-                    break
-                if "chamber" in profile and not isinstance(profile.get("chamber", 0), int):
-                    needs_migration = True
-                    break
-                if "filament" in profile and not isinstance(profile.get("filament", 0), int):
-                    needs_migration = True
-                    break
-            
-            if needs_migration:
+            if any(
+                map(
+                    lambda x: not isinstance(x.get("extruder", 0), int)
+                    or not isinstance(x.get("bed", 0), int),
+                    profiles,
+                )
+            ):
                 result = []
                 for profile in profiles:
                     try:
                         profile["extruder"] = int(profile["extruder"])
                         profile["bed"] = int(profile["bed"])
-                        if "chamber" in profile:
-                            profile["chamber"] = int(profile["chamber"])
-                        if "filament" in profile:
-                            profile["filament"] = int(profile["filament"])
                     except ValueError:
                         pass
                     result.append(profile)

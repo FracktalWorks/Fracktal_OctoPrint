@@ -69,6 +69,9 @@ A printer profile is a ``dict`` of the following structure:
    * - ``heatedChamber``
      - ``bool``
      - Whether the printer has a heated chamber (``True``) or not (``False``)
+   * - ``heatedFilament``
+     - ``bool``
+     - Whether the printer has a heated filament heater (``True``) or not (``False``)
    * - ``extruder``
      - ``dict``
      - Information about the printer's extruders
@@ -620,6 +623,10 @@ class PrinterProfileManager(object):
             profile["heatedChamber"] = False
             modified = True
 
+        if "heatedFilament" not in profile:
+            profile["heatedFilament"] = False
+            modified = True
+
         return modified
 
     def _ensure_valid_profile(self, profile):
@@ -685,6 +692,9 @@ class PrinterProfileManager(object):
             ("axes", "y", "inverted"),
             ("axes", "z", "inverted"),
             ("extruder", "sharedNozzle"),
+            ("heatedBed",),
+            ("heatedChamber",),
+            ("heatedFilament",),
         ):
             try:
                 convert_value(profile, path, bool)
