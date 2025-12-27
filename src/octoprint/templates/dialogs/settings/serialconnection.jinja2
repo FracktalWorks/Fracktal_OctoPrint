@@ -385,6 +385,20 @@
                         <div class="control-group">
                             <div class="controls">
                                 <label class="checkbox">
+                                    <input type="checkbox" data-bind="checked: serial_capChamberTemp" id="settings-serialCapChamberTemp"> {{ _('Support chamber temperature, if detected') }}
+                                </label>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <div class="controls">
+                                <label class="checkbox">
+                                    <input type="checkbox" data-bind="checked: serial_capFilamentTemp" id="settings-serialCapFilamentTemp"> {{ _('Support filament temperature, if detected') }}
+                                </label>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <div class="controls">
+                                <label class="checkbox">
                                     <input type="checkbox" data-bind="checked: serial_capExtendedM20" id="settings-serialCapExtendedM20"> {{ _('Send <code>M20 L</code> instead of <code>M20</code> to use extended SD file lists, if detected as supported by the firmware') }}
                                 </label>
                             </div>

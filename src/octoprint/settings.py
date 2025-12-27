@@ -181,6 +181,8 @@ default_settings = {
             "autoreport_pos": True,
             "busy_protocol": True,
             "emergency_parser": True,
+            "chamber_temp": True,
+            "filament_temp": True,
             "extended_m20": True,
         },
         "resendRatioThreshold": 10,
@@ -1603,18 +1605,28 @@ class Settings(object):
         """
         if "temperature" in config and "profiles" in config["temperature"]:
             profiles = config["temperature"]["profiles"]
-            if any(
-                map(
-                    lambda x: not isinstance(x.get("extruder", 0), int)
-                    or not isinstance(x.get("bed", 0), int),
-                    profiles,
-                )
-            ):
+            needs_migration = False
+            for profile in profiles:
+                if not isinstance(profile.get("extruder", 0), int) or not isinstance(profile.get("bed", 0), int):
+                    needs_migration = True
+                    break
+                if "chamber" in profile and not isinstance(profile.get("chamber", 0), int):
+                    needs_migration = True
+                    break
+                if "filament" in profile and not isinstance(profile.get("filament", 0), int):
+                    needs_migration = True
+                    break
+            
+            if needs_migration:
                 result = []
                 for profile in profiles:
                     try:
                         profile["extruder"] = int(profile["extruder"])
                         profile["bed"] = int(profile["bed"])
+                        if "chamber" in profile:
+                            profile["chamber"] = int(profile["chamber"])
+                        if "filament" in profile:
+                            profile["filament"] = int(profile["filament"])
                     except ValueError:
                         pass
                     result.append(profile)

@@ -239,6 +239,7 @@ class PrinterProfileManager(object):
         },
         "heatedBed": True,
         "heatedChamber": False,
+        "heatedFilament": False,
         "extruder": {
             "count": 1,
             "offsets": [(0, 0)],

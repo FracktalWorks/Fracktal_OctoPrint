@@ -259,6 +259,10 @@ def getSettings():
             "capEmergencyParser": s.getBoolean(
                 ["serial", "capabilities", "emergency_parser"]
             ),
+            "capChamberTemp": s.getBoolean(["serial", "capabilities", "chamber_temp"]),
+            "capFilamentTemp": s.getBoolean(
+                ["serial", "capabilities", "filament_temp"]
+            ),
             "capExtendedM20": s.getBoolean(["serial", "capabilities", "extended_m20"]),
             "resendRatioThreshold": s.getInt(["serial", "resendRatioThreshold"]),
             "resendRatioStart": s.getInt(["serial", "resendRatioStart"]),
@@ -936,6 +940,16 @@ def _saveSettings(data):
             s.setBoolean(
                 ["serial", "capabilities", "emergency_parser"],
                 data["serial"]["capEmergencyParser"],
+            )
+        if "capChamberTemp" in data["serial"]:
+            s.setBoolean(
+                ["serial", "capabilities", "chamber_temp"],
+                data["serial"]["capChamberTemp"],
+            )
+        if "capFilamentTemp" in data["serial"]:
+            s.setBoolean(
+                ["serial", "capabilities", "filament_temp"],
+                data["serial"]["capFilamentTemp"],
             )
         if "capExtendedM20" in data["serial"]:
             s.setBoolean(
