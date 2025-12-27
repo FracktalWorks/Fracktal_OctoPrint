@@ -1600,23 +1600,32 @@ class Settings(object):
         Migrates/fixes temperature profile wrongly saved with strings instead of ints as temperature values.
 
         Added in 1.3.8
+        Updated in 1.7.40 to include chamber and filament
         """
         if "temperature" in config and "profiles" in config["temperature"]:
             profiles = config["temperature"]["profiles"]
             if any(
                 map(
                     lambda x: not isinstance(x.get("extruder", 0), int)
-                    or not isinstance(x.get("bed", 0), int),
+                    or not isinstance(x.get("bed", 0), int)
+                    or not isinstance(x.get("chamber", 0), int)
+                    or not isinstance(x.get("filament", 0), int),
                     profiles,
                 )
             ):
                 result = []
                 for profile in profiles:
                     try:
-                        profile["extruder"] = int(profile["extruder"])
-                        profile["bed"] = int(profile["bed"])
-                    except ValueError:
-                        pass
+                        profile["extruder"] = int(profile.get("extruder", 0))
+                        profile["bed"] = int(profile.get("bed", 0))
+                        profile["chamber"] = int(profile.get("chamber", 0))
+                        profile["filament"] = int(profile.get("filament", 0))
+                    except (ValueError, TypeError):
+                        # Set defaults if conversion fails
+                        profile.setdefault("extruder", 0)
+                        profile.setdefault("bed", 0)
+                        profile.setdefault("chamber", 0)
+                        profile.setdefault("filament", 0)
                     result.append(profile)
                 config["temperature"]["profiles"] = result
                 return True
