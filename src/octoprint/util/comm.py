@@ -122,7 +122,7 @@ Groups will be as follows:
 """
 
 regex_temp = re.compile(
-    r"(?P<tool>B|C|T(?P<toolnum>\d*)):\s*(?P<actual>%s)(\s*\/?\s*(?P<target>%s))?"
+    r"(?P<tool>B|C|F|T(?P<toolnum>\d*)):\s*(?P<actual>%s)(\s*\/?\s*(?P<target>%s))?"
     % (regex_float_pattern, regex_float_pattern)
 )
 """Regex matching temperature entries in line.
@@ -2492,6 +2492,7 @@ class MachineCom(object):
                         or "T0:" in line
                         or "B:" in line
                         or "C:" in line
+                        or "F:" in line
                         or "X:" in line
                         or "NAME:" in line
                     )
@@ -2609,6 +2610,10 @@ class MachineCom(object):
                     or " T0:" in line
                     or line.startswith("T0:")
                     or ((" B:" in line or line.startswith("B:")) and "A:" not in line)
+                    or " F:" in line
+                    or line.startswith("F:")
+                    or " C:" in line
+                    or line.startswith("C:")
                 ):
 
                     if (
