@@ -355,6 +355,83 @@ def printerFilamentState():
         return jsonify(data)
 
 
+##~~ Secondary heaters
+
+
+@api.route("/printer/heater/<int:heater_num>", methods=["POST"])
+@no_firstrun_access
+@Permissions.CONTROL.require(403)
+def printerSecondaryHeaterCommand(heater_num):
+    if not printer.is_operational():
+        abort(409, description="Printer is not operational")
+
+    profile = printerProfileManager.get_current_or_default()
+    if not profile.get("hasSecondaryHeaters", False):
+        abort(409, description="Printer does not have secondary heaters")
+
+    extruder_count = profile["extruder"]["count"]
+    if heater_num < 0 or heater_num >= extruder_count:
+        abort(400, description="Invalid heater number")
+
+    valid_commands = {"target": ["target"], "offset": ["offset"]}
+    command, data, response = get_json_command_from_request(request, valid_commands)
+    if response is not None:
+        return response
+
+    tags = {"source:api", "api:printer.heater"}
+    heater_key = "H%d" % heater_num
+
+    ##~~ temperature
+    if command == "target":
+        target = data["target"]
+
+        # make sure the target is a number
+        if not isinstance(target, (int, long, float)):
+            abort(400, description="target is invalid")
+
+        # perform the actual temperature command
+        printer.set_temperature(heater_key, target, tags=tags)
+
+    ##~~ temperature offset
+    elif command == "offset":
+        offset = data["offset"]
+
+        # make sure the offset is valid
+        if not isinstance(offset, (int, long, float)) or not -50 <= offset <= 50:
+            abort(400, description="offset is invalid")
+
+        # set the offsets
+        printer.set_temperature_offset({heater_key: offset})
+
+    return NO_CONTENT
+
+
+@api.route("/printer/heater/<int:heater_num>", methods=["GET"])
+@no_firstrun_access
+@Permissions.STATUS.require(403)
+def printerSecondaryHeaterState(heater_num):
+    if not printer.is_operational():
+        abort(409, description="Printer is not operational")
+
+    profile = printerProfileManager.get_current_or_default()
+    if not profile.get("hasSecondaryHeaters", False):
+        abort(409, description="Printer does not have secondary heaters")
+
+    extruder_count = profile["extruder"]["count"]
+    if heater_num < 0 or heater_num >= extruder_count:
+        abort(400, description="Invalid heater number")
+
+    def _keep_heater(entry):
+        heater_key = "H%d" % heater_num
+        return heater_key in entry
+
+    data = _get_temperature_data(_keep_heater)
+    if isinstance(data, Response):
+        return data
+    else:
+        return jsonify(data)
+
+
 ##~~ Print head
 
 

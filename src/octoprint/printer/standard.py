@@ -71,10 +71,12 @@ class Printer(PrinterInterface, comm.MachineComPrintCallback):
         self._bedTemp = None
         self._chamberTemp = None
         self._filamentTemp = None
+        self._secondaryHeatersTemp = {}
         self._targetTemp = None
         self._targetBedTemp = None
         self._targetChamberTemp = None
         self._targetFilamentTemp = None
+        self._targetSecondaryHeatersTemp = {}
         self._temps = TemperatureHistory(
             cutoff=settings().getInt(["temperature", "cutoff"]) * 60
         )
@@ -598,7 +600,7 @@ class Printer(PrinterInterface, comm.MachineComPrintCallback):
     def set_temperature(self, heater, value, *args, **kwargs):
         if not PrinterInterface.valid_heater_regex.match(heater):
             raise ValueError(
-                'heater must match "tool[0-9]+", "bed", "chamber" or "filament": {heater}'.format(
+                'heater must match "tool[0-9]+", "bed", "chamber", "filament" or "H[0-9]+": {heater}'.format(
                     heater=heater
                 )
             )
@@ -628,6 +630,10 @@ class Printer(PrinterInterface, comm.MachineComPrintCallback):
 
         elif heater == "filament":
             self.commands("M142 S{}".format(value), tags=tags)
+
+        elif heater.startswith("H"):
+            heaterNum = int(heater[1:])
+            self.commands("M104 H{} S{}".format(heaterNum, value), tags=tags)
 
     def set_temperature_offset(self, offsets=None, *args, **kwargs):
         if offsets is None:
@@ -895,6 +901,17 @@ class Printer(PrinterInterface, comm.MachineComPrintCallback):
                 if "filament" in offsets and offsets["filament"] is not None
                 else 0,
             }
+        
+        if self._secondaryHeatersTemp:
+            for heater_num in self._secondaryHeatersTemp.keys():
+                heater_key = "H%d" % heater_num
+                result[heater_key] = {
+                    "actual": self._secondaryHeatersTemp[heater_num][0],
+                    "target": self._secondaryHeatersTemp[heater_num][1],
+                    "offset": offsets[heater_key]
+                    if heater_key in offsets and offsets[heater_key] is not None
+                    else 0,
+                }
 
         return result
 
@@ -1228,9 +1245,11 @@ class Printer(PrinterInterface, comm.MachineComPrintCallback):
             ratio=int(self._comm.resend_ratio * 100),
         )
 
-    def _addTemperatureData(self, tools=None, bed=None, chamber=None, filament=None, custom=None):
+    def _addTemperatureData(self, tools=None, bed=None, chamber=None, filament=None, secondary_heaters=None, custom=None):
         if tools is None:
             tools = {}
+        if secondary_heaters is None:
+            secondary_heaters = {}
         if custom is None:
             custom = {}
 
@@ -1245,6 +1264,9 @@ class Printer(PrinterInterface, comm.MachineComPrintCallback):
             data["chamber"] = self._dict(actual=chamber[0], target=chamber[1])
         if filament is not None and isinstance(filament, tuple):
             data["filament"] = self._dict(actual=filament[0], target=filament[1])
+        for heater_num, values in secondary_heaters.items():
+            if isinstance(values, tuple):
+                data["H%d" % heater_num] = self._dict(actual=values[0], target=values[1])
         for identifier, values in custom.items():
             data[identifier] = self._dict(actual=values[0], target=values[1])
 
@@ -1254,6 +1276,7 @@ class Printer(PrinterInterface, comm.MachineComPrintCallback):
         self._bedTemp = bed
         self._chamberTemp = chamber
         self._filamentTemp = filament
+        self._secondaryHeatersTemp = secondary_heaters
         self._custom = custom
 
         self._stateMonitor.add_temperature(self._dict(**data))
@@ -1468,7 +1491,7 @@ class Printer(PrinterInterface, comm.MachineComPrintCallback):
         """
         self._addLog(to_unicode(message, "utf-8", errors="replace"))
 
-    def on_comm_temperature_update(self, tools, bed, chamber, filament, custom=None):
+    def on_comm_temperature_update(self, tools, bed, chamber, filament, secondary_heaters, custom=None):
         if custom is None:
             custom = {}
         self._addTemperatureData(
@@ -1476,6 +1499,7 @@ class Printer(PrinterInterface, comm.MachineComPrintCallback):
             bed=copy.deepcopy(bed),
             chamber=copy.deepcopy(chamber),
             filament=copy.deepcopy(filament),
+            secondary_heaters=copy.deepcopy(secondary_heaters),
             custom=copy.deepcopy(custom),
         )
 

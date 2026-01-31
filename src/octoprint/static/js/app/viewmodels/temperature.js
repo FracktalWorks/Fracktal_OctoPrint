@@ -87,6 +87,7 @@ $(function () {
         self.hasBed = ko.observable(true);
         self.hasChamber = ko.observable(false);
         self.hasFilament = ko.observable(false);
+        self.hasSecondaryHeaters = ko.observable(false);
 
         self.visible = ko.pureComputed(function () {
             return self.hasTools() || self.hasBed();
@@ -103,6 +104,8 @@ $(function () {
         self.filamentTemp = self._createToolEntry();
         self.filamentTemp["name"](gettext("Filament"));
         self.filamentTemp["key"]("filament");
+        
+        self.secondaryHeaters = ko.observableArray([]);
 
         self.isErrorOrClosed = ko.observable(undefined);
         self.isOperational = ko.observable(undefined);
@@ -187,6 +190,27 @@ $(function () {
                 self.hasFilament(false);
             }
 
+            // secondary heaters
+            var secondaryHeaters = [];
+            if (currentProfileData && currentProfileData.hasSecondaryHeaters()) {
+                self.hasSecondaryHeaters(true);
+                var extruderCount = currentProfileData.extruder.count();
+                var secondaryColors = ["darkred", "darkorange", "darkgreen", "darkblue", "darkviolet", "darkcyan"];
+                
+                for (var i = 0; i < extruderCount; i++) {
+                    var heater = self._createToolEntry();
+                    heater["name"]("H" + i);
+                    heater["key"]("H" + i);
+                    secondaryHeaters.push(heater);
+                    
+                    color = secondaryColors[i % secondaryColors.length];
+                    heaterOptions["H" + i] = {name: "H" + i, color: color};
+                }
+            } else {
+                self.hasSecondaryHeaters(false);
+            }
+            self.secondaryHeaters(secondaryHeaters);
+
             // write back
             self.heaterOptions(heaterOptions);
             self.tools(tools);
@@ -214,6 +238,9 @@ $(function () {
             self.settingsViewModel.printerProfiles
                 .currentProfileData()
                 .heatedFilament.subscribe(self._printerProfileUpdated);
+            self.settingsViewModel.printerProfiles
+                .currentProfileData()
+                .hasSecondaryHeaters.subscribe(self._printerProfileUpdated);
         });
 
         self.temperatures = [];
@@ -304,6 +331,18 @@ $(function () {
                 self.filamentTemp["target"](0);
             }
 
+            var secondaryHeaters = self.secondaryHeaters();
+            for (var i = 0; i < secondaryHeaters.length; i++) {
+                var key = "H" + i;
+                if (lastData.hasOwnProperty(key)) {
+                    secondaryHeaters[i]["actual"](lastData[key].actual);
+                    secondaryHeaters[i]["target"](lastData[key].target);
+                } else {
+                    secondaryHeaters[i]["actual"](0);
+                    secondaryHeaters[i]["target"](0);
+                }
+            }
+
             if (!CONFIG_TEMPERATURE_GRAPH) return;
 
             self.temperatures = self._processTemperatureData(
@@ -345,6 +384,16 @@ $(function () {
                 self.filamentTemp["offset"](data["filament"]);
             } else {
                 self.filamentTemp["offset"](0);
+            }
+
+            var secondaryHeaters = self.secondaryHeaters();
+            for (var i = 0; i < secondaryHeaters.length; i++) {
+                var key = "H" + i;
+                if (data.hasOwnProperty(key)) {
+                    secondaryHeaters[i]["offset"](data[key]);
+                } else {
+                    secondaryHeaters[i]["offset"](0);
+                }
             }
         };
 
@@ -796,6 +845,10 @@ $(function () {
             self.tools().forEach(function (element) {
                 self.setTargetToZero(element);
             });
+
+            self.secondaryHeaters().forEach(function (element) {
+                self.setTargetToZero(element);
+            });
         };
 
         self.setTargetToZero = function (item) {
@@ -825,6 +878,9 @@ $(function () {
                 return self._setChamberTemperature(value).done(onSuccess);
             } else if (item.key() === "filament") {
                 return self._setFilamentTemperature(value).done(onSuccess);
+            } else if (item.key().startsWith("H")) {
+                var heaterNum = parseInt(item.key().substring(1));
+                return self._setSecondaryHeaterTemperature(heaterNum, value).done(onSuccess);
             } else {
                 return self._setToolTemperature(item.key(), value).done(onSuccess);
             }
@@ -917,6 +973,9 @@ $(function () {
                 return self._setChamberOffset(value).done(onSuccess);
             } else if (item.key() === "filament") {
                 return self._setFilamentOffset(value).done(onSuccess);
+            } else if (item.key().startsWith("H")) {
+                var heaterNum = parseInt(item.key().substring(1));
+                return self._setSecondaryHeaterOffset(heaterNum, value).done(onSuccess);
             } else {
                 return self._setToolOffset(item.key(), value).done(onSuccess);
             }
@@ -956,6 +1015,14 @@ $(function () {
 
         self._setFilamentOffset = function (offset) {
             return OctoPrint.printer.setFilamentTemperatureOffset(parseInt(offset));
+        };
+
+        self._setSecondaryHeaterTemperature = function (heater, temperature) {
+            return OctoPrint.printer.setSecondaryHeaterTargetTemperature(heater, parseInt(temperature));
+        };
+
+        self._setSecondaryHeaterOffset = function (heater, offset) {
+            return OctoPrint.printer.setSecondaryHeaterTemperatureOffset(heater, parseInt(offset));
         };
 
         self._replaceLegendLabel = function (index, series, value, emph) {

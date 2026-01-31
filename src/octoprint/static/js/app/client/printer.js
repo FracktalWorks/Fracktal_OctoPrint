@@ -316,6 +316,41 @@
         return this.issueFilamentCommand("offset", payload, opts);
     };
 
+    OctoPrintPrinterClient.prototype.setSecondaryHeaterTargetTemperature = function (
+        heater,
+        target,
+        opts
+    ) {
+        target = target || 0;
+
+        var payload = {
+            target: target
+        };
+
+        var heaterUrl = url + "/heater/" + heater;
+        return this.base.issueCommand(heaterUrl, "target", payload, opts);
+    };
+
+    OctoPrintPrinterClient.prototype.setSecondaryHeaterTemperatureOffset = function (
+        heater,
+        offset,
+        opts
+    ) {
+        offset = offset || 0;
+
+        var payload = {
+            offset: offset
+        };
+
+        var heaterUrl = url + "/heater/" + heater;
+        return this.base.issueCommand(heaterUrl, "offset", payload, opts);
+    };
+
+    OctoPrintPrinterClient.prototype.getSecondaryHeaterState = function (heater, opts) {
+        var heaterUrl = url + "/heater/" + heater;
+        return this.base.get(heaterUrl, opts);
+    };
+
     OctoPrintPrinterClient.prototype.initSd = function (opts) {
         return this.issueSdCommand("init", {}, opts);
     };

@@ -122,15 +122,16 @@ Groups will be as follows:
 """
 
 regex_temp = re.compile(
-    r"(?P<tool>B|C|F|T(?P<toolnum>\d*)):\s*(?P<actual>%s)(\s*\/?\s*(?P<target>%s))?"
+    r"(?P<tool>B|C|F|T(?P<toolnum>\d*)|H(?P<heaternum>\d*)):\s*(?P<actual>%s)(\s*\/?\s*(?P<target>%s))?"
     % (regex_float_pattern, regex_float_pattern)
 )
 """Regex matching temperature entries in line.
 
 Groups will be as follows:
 
-  * ``tool``: whole tool designator, incl. optional ``toolnum`` (str)
+  * ``tool``: whole tool designator, incl. optional ``toolnum`` or ``heaternum`` (str)
   * ``toolnum``: tool number, if provided (int)
+  * ``heaternum``: secondary heater number, if provided (int)
   * ``actual``: actual temperature (float)
   * ``target``: target temperature, if provided (float)
 """
@@ -352,6 +353,7 @@ class TemperatureRecord(object):
         self._bed = (None, None)
         self._chamber = (None, None)
         self._filament = (None, None)
+        self._secondary_heaters = {}
         self._custom = {}
 
     def copy_from(self, other):
@@ -373,6 +375,10 @@ class TemperatureRecord(object):
     def set_filament(self, actual=None, target=None):
         current = self._filament
         self._filament = self._to_new_tuple(current, actual, target)
+
+    def set_secondary_heater(self, heater, actual=None, target=None):
+        current = self._secondary_heaters.get(heater, (None, None))
+        self._secondary_heaters[heater] = self._to_new_tuple(current, actual, target)
 
     def set_custom(self, identifier, actual=None, target=None):
         if self.RESERVED_IDENTIFIER_REGEX.match(identifier):
@@ -397,6 +403,10 @@ class TemperatureRecord(object):
         return self._filament
 
     @property
+    def secondary_heaters(self):
+        return dict(self._secondary_heaters)
+
+    @property
     def custom(self):
         return dict(self._custom)
 
@@ -415,6 +425,10 @@ class TemperatureRecord(object):
 
         filament = self.filament
         result["f"] = {"actual": filament[0], "target": filament[1]}
+
+        secondary_heaters = self.secondary_heaters
+        for heater, data in secondary_heaters.items():
+            result[heater] = {"actual": data[0], "target": data[1]}
 
         custom = self.custom
         for identifier, data in custom.items():
@@ -2178,6 +2192,16 @@ class MachineCom(object):
             del parsedTemps["F"]
             self.last_temperature.set_filament(actual=actual, target=target)
 
+        # secondary heaters (H0, H1, etc.)
+        if self._printerProfileManager.get_current_or_default().get("hasSecondaryHeaters", False):
+            extruder_count = self._printerProfileManager.get_current_or_default()["extruder"]["count"]
+            for n in range(extruder_count):
+                heater_key = "H%d" % n
+                if heater_key in parsedTemps:
+                    actual, target = parsedTemps[heater_key]
+                    del parsedTemps[heater_key]
+                    self.last_temperature.set_secondary_heater(n, actual=actual, target=target)
+
         # all other injected temperatures
         for key in parsedTemps.keys():
             actual, target = parsedTemps[key]
@@ -2633,6 +2657,7 @@ class MachineCom(object):
                         self.last_temperature.bed,
                         self.last_temperature.chamber,
                         self.last_temperature.filament,
+                        self.last_temperature.secondary_heaters,
                         self.last_temperature.custom,
                     )
 
@@ -2652,6 +2677,7 @@ class MachineCom(object):
                                 self.last_temperature.bed,
                                 self.last_temperature.chamber,
                                 self.last_temperature.filament,
+                                self.last_temperature.secondary_heaters,
                                 self.last_temperature.custom,
                             )
                         except ValueError:
@@ -2665,6 +2691,7 @@ class MachineCom(object):
                                 self.last_temperature.bed,
                                 self.last_temperature.chamber,
                                 self.last_temperature.filament,
+                                self.last_temperature.secondary_heaters,
                                 self.last_temperature.custom,
                             )
                         except ValueError:
@@ -5147,6 +5174,7 @@ class MachineCom(object):
                     self.last_temperature.bed,
                     self.last_temperature.chamber,
                     self.last_temperature.filament,
+                    self.last_temperature.secondary_heaters,
                     self.last_temperature.custom,
                 )
             except ValueError:
@@ -5176,6 +5204,7 @@ class MachineCom(object):
                     self.last_temperature.bed,
                     self.last_temperature.chamber,
                     self.last_temperature.filament,
+                    self.last_temperature.secondary_heaters,
                     self.last_temperature.custom,
                 )
             except ValueError:
@@ -5257,6 +5286,7 @@ class MachineCom(object):
                     self.last_temperature.bed,
                     self.last_temperature.chamber,
                     self.last_temperature.filament,
+                    self.last_temperature.secondary_heaters,
                     self.last_temperature.custom,
                 )
             except ValueError:
@@ -5522,7 +5552,7 @@ class MachineComPrintCallback(object):
     def on_comm_log(self, message):
         pass
 
-    def on_comm_temperature_update(self, temp, bedTemp, chamberTemp, filamentTemp, customTemp):
+    def on_comm_temperature_update(self, temp, bedTemp, chamberTemp, filamentTemp, secondaryHeaters, customTemp):
         pass
 
     def on_comm_position_update(self, position, reason=None):
