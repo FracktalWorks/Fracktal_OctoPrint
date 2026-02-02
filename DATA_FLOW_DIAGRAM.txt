@@ -1,0 +1,164 @@
+# Secondary Heaters: Data Flow Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          FIRMWARE (3D Printer)                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    │ M105 Response
+                                    │
+                    "ok T0:200.1/200.0 T1:200.3/200.0 B:60.2/60.0"
+                    "   C:35.0/40.0 F:55.1/55.0 H0:75.2/75.0 H1:50.1/50.0"
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    PARSING LAYER (comm.py)                                  │
+│                                                                             │
+│  regex_temp Pattern:                                                        │
+│  (?P<tool>B|C|F|T(?P<toolnum>\d*)|H(?P<heaternum>\d*)):\s*(?P<actual>...)  │
+│                                                                             │
+│  Matches: B, C, F, T, T0-T9, H0-H9  ← H parameter included! ✓              │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    │ parsedTemps dict
+                                    │
+                    {                                                         
+                      "T0": (200.1, 200.0),                                   
+                      "T1": (200.3, 200.0),                                   
+                      "B": (60.2, 60.0),                                      
+                      "C": (35.0, 40.0),                                      
+                      "F": (55.1, 55.0),                                      
+                      "H0": (75.2, 75.0),  ← Parsed ✓                        
+                      "H1": (50.1, 50.0),  ← Parsed ✓                        
+                    }                                                         
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│              TEMPERATURE PROCESSING (comm.py)                               │
+│                                                                             │
+│  _processTemperatures():                                                    │
+│    1. Process tools (T0, T1) → last_temperature.set_tool()                 │
+│    2. Process bed (B) → last_temperature.set_bed()                         │
+│    3. Process chamber (C) → last_temperature.set_chamber()                 │
+│    4. Process filament (F) → last_temperature.set_filament()               │
+│    5. Process secondary heaters (H0, H1) ✓                                 │
+│       → last_temperature.set_secondary_heater(0, 75.2, 75.0)  ✓            │
+│       → last_temperature.set_secondary_heater(1, 50.1, 50.0)  ✓            │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    │ Callback
+                                    │
+                    on_comm_temperature_update(                               
+                      temp={0:(200.1,200.0), 1:(200.3,200.0)},                
+                      bedTemp=(60.2,60.0),                                    
+                      chamberTemp=(35.0,40.0),                                
+                      filamentTemp=(55.1,55.0),                               
+                      secondaryHeaters={0:(75.2,75.0), 1:(50.1,50.0)} ✓      
+                    )                                                         
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                  PRINTER CONTROLLER (standard.py)                           │
+│                                                                             │
+│  Internal Storage:                                                          │
+│    self._temp = {0: (200.1, 200.0), 1: (200.3, 200.0)}                     │
+│    self._bedTemp = (60.2, 60.0)                                            │
+│    self._chamberTemp = (35.0, 40.0)                                        │
+│    self._filamentTemp = (55.1, 55.0)                                       │
+│    self._secondaryHeatersTemp = {0: (75.2, 75.0), 1: (50.1, 50.0)} ✓      │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                         ┌──────────┴──────────┐
+                         │                     │
+                         │                     │
+                         ▼                     ▼
+    ┌─────────────────────────────┐  ┌─────────────────────────────┐
+    │    API ENDPOINT             │  │    WEBSOCKET UPDATES        │
+    │    (printer.py)             │  │    (StateMonitor)           │
+    ├─────────────────────────────┤  ├─────────────────────────────┤
+    │                             │  │                             │
+    │ get_current_temperatures()  │  │ _addTemperatureData()       │
+    │   ↓                         │  │   ↓                         │
+    │ Returns:                    │  │ Sends:                      │
+    │ {                           │  │ {                           │
+    │   "tool0": {                │  │   "tool0": {                │
+    │     "actual": 200.1,        │  │     "actual": 200.1,        │
+    │     "target": 200.0,        │  │     "target": 200.0         │
+    │     "offset": 0             │  │   },                        │
+    │   },                        │  │   "tool1": {...},           │
+    │   "tool1": {...},           │  │   "bed": {...},             │
+    │   "bed": {...},             │  │   "chamber": {...},         │
+    │   "chamber": {...},         │  │   "filament": {...},        │
+    │   "filament": {...},        │  │   "H0": {                   │
+    │   "H0": {                   │  │     "actual": 75.2,         │
+    │     "actual": 75.2,         │  │     "target": 75.0          │
+    │     "target": 75.0,         │  │   },           ✓            │
+    │     "offset": 0             │  │   "H1": {                   │
+    │   },           ✓            │  │     "actual": 50.1,         │
+    │   "H1": {                   │  │     "target": 50.0          │
+    │     "actual": 50.1,         │  │   },           ✓            │
+    │     "target": 50.0,         │  │   "time": 1769866024        │
+    │     "offset": 0             │  │ }                           │
+    │   }            ✓            │  │                             │
+    │ }                           │  │ via SockJS to all clients   │
+    └─────────────────────────────┘  └─────────────────────────────┘
+                 │                              │
+                 │                              │
+                 └──────────┬───────────────────┘
+                            │
+                            ▼
+           ┌─────────────────────────────────────┐
+           │      WEB UI (JavaScript)            │
+           │                                     │
+           │  temperature.js viewmodel:          │
+           │    self.secondaryHeaters = [        │
+           │      {name: "H0", actual: ko.obs,   │
+           │       target: ko.obs},       ✓      │
+           │      {name: "H1", actual: ko.obs,   │
+           │       target: ko.obs}        ✓      │
+           │    ]                                │
+           │                                     │
+           │  Updates on WebSocket message:      │
+           │    secondaryHeaters[0].actual(75.2) │
+           │    secondaryHeaters[0].target(75.0) │
+           │    secondaryHeaters[1].actual(50.1) │
+           │    secondaryHeaters[1].target(50.0) │
+           └─────────────────────────────────────┘
+                            │
+                            ▼
+           ┌─────────────────────────────────────┐
+           │     UI DISPLAY (HTML)               │
+           │                                     │
+           │  Temperature Table:                 │
+           │  ┌──────────────────────────────┐   │
+           │  │ Tool  │ Actual │ Target │... │   │
+           │  ├──────────────────────────────┤   │
+           │  │ Tool0 │ 200.1  │ 200.0  │... │   │
+           │  │ Tool1 │ 200.3  │ 200.0  │... │   │
+           │  │ Bed   │  60.2  │  60.0  │... │   │
+           │  │ H0    │  75.2  │  75.0  │... │ ✓ │
+           │  │ H1    │  50.1  │  50.0  │... │ ✓ │
+           │  └──────────────────────────────┘   │
+           │                                     │
+           │  Temperature Graph:                 │
+           │  ┌──────────────────────────────┐   │
+           │  │ 200°├─────┬─────┬───H0───┬─ │   │
+           │  │ 150°│     │     │   H1   │   │   │
+           │  │ 100°│     │     └────────┘   │   │
+           │  │  50°│ Bed │                  │   │
+           │  │   0°└─────┴──────────────────┘   │
+           │  └──────────────────────────────┘   │
+           └─────────────────────────────────────┘
+
+
+SUMMARY OF VERIFICATION:
+═══════════════════════════════════════════════════════════════
+
+✓ M105 Parsing:        H0, H1 extracted from firmware response
+✓ Temperature Storage:  Stored in _secondaryHeatersTemp dict
+✓ API Response:        Included in GET /api/printer
+✓ WebSocket Updates:   Pushed to clients via StateMonitor
+✓ UI Display:          Shown in temperature table and graphs
+
+BOTH API AND WEBSOCKET CORRECTLY HANDLE SECONDARY HEATERS!
+```
