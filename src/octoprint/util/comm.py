@@ -6339,13 +6339,13 @@ def parse_temperature_line(line, current):
             maxToolNum = toolNumber
 
         try:
-            actual = float(match.group(3))
+            actual = float(values["actual"])
             target = None
-            if match.group(4) and match.group(5):
-                target = float(match.group(5))
+            if values.get("target"):
+                target = float(values["target"])
 
             result[tool] = (actual, target)
-        except ValueError:
+        except (ValueError, TypeError):
             # catch conversion issues, we'll rather just not get the temperature update instead of killing the connection
             pass
 
