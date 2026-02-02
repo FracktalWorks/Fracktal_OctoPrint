@@ -72,6 +72,9 @@ A printer profile is a ``dict`` of the following structure:
    * - ``heatedFilament``
      - ``bool``
      - Whether the printer has a heated filament heater (``True``) or not (``False``)
+   * - ``hasSecondaryHeaters``
+     - ``bool``
+     - Whether the printer has secondary heaters H0, H1, etc. (``True``) or not (``False``)
    * - ``extruder``
      - ``dict``
      - Information about the printer's extruders
@@ -243,6 +246,7 @@ class PrinterProfileManager(object):
         "heatedBed": True,
         "heatedChamber": False,
         "heatedFilament": False,
+        "hasSecondaryHeaters": False,
         "extruder": {
             "count": 1,
             "offsets": [(0, 0)],
@@ -695,6 +699,7 @@ class PrinterProfileManager(object):
             ("heatedBed",),
             ("heatedChamber",),
             ("heatedFilament",),
+            ("hasSecondaryHeaters",),
         ):
             try:
                 convert_value(profile, path, bool)
