@@ -5233,6 +5233,8 @@ class MachineCom(object):
                     self.last_temperature.tools,
                     self.last_temperature.bed,
                     self.last_temperature.chamber,
+                    self.last_temperature.filament,
+                    self.last_temperature.secondary_heaters,
                     self.last_temperature.custom,
                 )
             except ValueError:
