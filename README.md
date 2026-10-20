@@ -4,14 +4,14 @@
 > Printers already running it keep updating from this repository's releases. **It is in maintenance mode: no new features.**
 >
 > **New-generation printers (Debian 13, Python 3.13) use OctoPrint 1.11.x from
-> [`FracktalWorks/OctoPrintUpdates-`](https://github.com/FracktalWorks/OctoPrintUpdates-) (branch `production`).**
+> [`FracktalWorks/Fracktal_OctoPrint_NextGen`](https://github.com/FracktalWorks/Fracktal_OctoPrint_NextGen) (branch `production`).**
 > Never install that version on an old printer or this one on a new printer, and do not publish new-generation
 > releases here: old printers would offer them as updates and break (Python 3.7 cannot run 1.11).
 >
 > | Printer generation | OctoPrint | Repository |
 > |---|---|---|
 > | Old (Debian 10-12, Python 3.7-3.11) | 1.7.x | this repo |
-> | New (Debian 13 base image) | 1.11.x | OctoPrintUpdates- |
+> | New (Debian 13 base image) | 1.11.x | Fracktal_OctoPrint_NextGen |
 
 <p align="center"><img src="https://octoprint.org/assets/img/logo.png" alt="OctoPrint's logo" /></p>
 
